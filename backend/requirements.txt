@@ -1,0 +1,10 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+transformers==4.44.2
+torch==2.8.0
+datasets==2.21.0
+scikit-learn==1.5.1
+joblib==1.4.2  # For saving .pkl models
+pandas==2.2.2
+numpy==2.0.1
+fsspec<=2024.6.1,>=2023.1.0  # For loading models from Hugging Face Hub
