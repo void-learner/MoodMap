@@ -1,2 +1,11 @@
 venv/
 .env
+
+# Ignore all emotion_model versions
+emotion_model_v*/
+emotion_model/
+
+# Ignore model weights
+*.bin
+*.pt
+*.pkl
