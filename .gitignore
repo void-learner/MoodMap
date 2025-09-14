@@ -9,3 +9,6 @@ emotion_model/
 *.bin
 *.pt
 *.pkl
+
+# Ignore test outputs
+test/
