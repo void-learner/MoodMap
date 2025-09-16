@@ -93,6 +93,51 @@ for epoch in range(3):
 end_time = time.time()
 print(f"Training completed in {(end_time - start_time)/60:.2f} minutes.")
 
+
+def analyze_emotion(text):
+    saved_dir_path = './backend/data/saved_models'
+    
+    if not os.path.exists(saved_dir_path) or not os.listdir(saved_dir_path):
+        raise ValueError("No saved models found. Please train the model first.")
+    
+    existing_versions = [
+        d for d in os.listdir(saved_dir_path)
+        if d.startswith('emotion_model_v') and os.path.isdir(os.path.join(saved_dir_path, d))
+    ]
+
+    if not existing_versions:
+        raise ValueError("No valid model versions found in the saved models directory.")
+    
+    latest_version = max(
+        int((v.split('_v')[-1])) for v in existing_versions
+    )
+    version_dir = os.path.join(saved_dir_path, f'emotion_model_v{latest_version}')
+    model = BertForSequenceClassification.from_pretrained(version_dir)
+    tokenizer = BertTokenizer.from_pretrained(version_dir)
+    mlb = joblib.load(os.path.join(version_dir, 'mlb.pkl'))
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+    model.eval()   # putting model into evaluation mode
+
+    '''During inference, it applies those patterns to make decisions.'''
+    inputs = tokenizer(
+        text,
+        return_tensors='pt',
+        padding=True,
+        truncation=True
+    )
+
+    with torch.no_grad():
+        outputs = model(**inputs).logits  # classification model outputs
+    probabilities = torch.sigmoid(outputs)
+    threshold = 0.5
+    predicted = (probabilities >= threshold).cpu().numpy()   # gives binary vector
+    predicted_list = mlb.inverse_transform(predicted)[0]    # converting binary vector to list of labels
+
+    return predicted_list
+
+
 # # Save the model
 # import joblib
 # model.save_pretrained('./backend/emotion_model')
