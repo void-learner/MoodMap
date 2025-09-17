@@ -19,7 +19,7 @@ class Feedback(BaseModel):
 @app.post("/analyze_emotion")
 def analyze(input: Input):
     emotion = analyze_emotion(input.text)
-    generated = chat_with_bot(input.text, emotion)
+    generated = chat_with_bot(emotion, input.text)
     return {'emotion': emotion, 'generated_text': generated}
 
 @app.post("/feedback")

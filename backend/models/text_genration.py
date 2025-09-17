@@ -27,8 +27,8 @@ def chat_with_bot(emotion, user_input):
     return tokenizer.decode(reply_ids[0], skip_special_tokens=True)
 
 # examples
-print("Bot:", chat_with_bot("happy", "Hello, how are you?. My name is Aarya"))
-print("Bot:", chat_with_bot("neutral", "I love poetry."))
+# print("Bot:", chat_with_bot("happy", "Hello, how are you?. My name is Aarya"))
+# print("Bot:", chat_with_bot("neutral", "I love poetry."))
 
 
 # =======================================================================
