@@ -13,7 +13,7 @@ dataset = load_dataset("go_emotions", "simplified")   # It returnes a dictionary
 
 # Preprocess
 df = pd.DataFrame(dataset['train'])  # Convert to DataFrame for easier manipulation(text, labels)
-df = df.sample(1000, random_state=42)  # Use only 1000 samples
+df = df.sample(10000, random_state=42)  # Use only 1000 samples
 emotions = df['labels'].explode().unique()
 mlb = MultiLabelBinarizer(classes=emotions, sparse_output=False)
 labels = mlb.fit_transform(df['labels'])
