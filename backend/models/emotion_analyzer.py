@@ -13,7 +13,7 @@ dataset = load_dataset("go_emotions", "simplified")   # It returnes a dictionary
 
 # Preprocess
 df = pd.DataFrame(dataset['train'])  # Convert to DataFrame for easier manipulation(text, labels)
-df = df.sample(10000, random_state=42)  # Use only 1000 samples
+df = df.sample(15000, random_state=42)  # Use only 1000 samples
 emotions = df['labels'].explode().unique()
 mlb = MultiLabelBinarizer(classes=emotions, sparse_output=False)
 labels = mlb.fit_transform(df['labels'])
@@ -137,6 +137,30 @@ def analyze_emotion(text):
 
     return predicted_list
 
+
+# Test samples (texts from GoEmotions examples; expected emotions based on context/dataset labels)
+test_samples = [
+    {"text": "LETS FUCKING GOOOOO", "expected": ["excitement"]},  # Often mislabeled as "anger" in dataset, but excitement
+    {"text": "*aggressively tells friend I love them*", "expected": ["love"]},  # Mislabeled as "anger"
+    {"text": "you almost blew my fucking mind there.", "expected": ["surprise", "admiration"]},  # Mislabeled as "annoyance"
+    {"text": "daaaaaamn girl!", "expected": ["admiration"]},  # Mislabeled as "anger"
+    {"text": "[NAME] wept.", "expected": ["surprise"]},  # Idiom, mislabeled as "sadness"
+    {"text": "I try my damndest. Hard to be sad these days when I got this guy with me", "expected": ["joy"]},  # Mislabeled as "sadness"
+    {"text": "hell yeah my brother", "expected": ["approval"]},  # Mislabeled as "annoyance"
+    {"text": "[NAME] is bae, how dare you.", "expected": ["love"]},  # Mock anger, mislabeled as "anger"
+    {"text": "I'm so happy today!", "expected": ["joy"]},  # Simple positive
+    {"text": "I feel really sad.", "expected": ["sadness"]},  # Simple negative
+    {"text": "This is neutral.", "expected": ["neutral"]}  # Neutral baseline
+]
+
+print("\nManual Test Results:")
+for sample in test_samples:
+    predicted = analyze_emotion(sample['text'])
+    print(f"Text: '{sample['text']}'")
+    print(f"Predicted: {predicted}")
+    print(f"Expected (approx.): {sample['expected']}")
+    print(f"Match? {set(predicted) & set(sample['expected'])}")  # Simple overlap check
+    print("---")
 
 # # Save the model
 # import joblib
