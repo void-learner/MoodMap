@@ -10,10 +10,11 @@ import os
 
 # Load the dataset
 dataset = load_dataset("go_emotions", "simplified")   # It returnes a dictionary with 'train', 'validation', and 'test' splits
+emotion_names = dataset['train'].features['labels'].feature.names
 
 # Preprocess
 df = pd.DataFrame(dataset['train'])  # Convert to DataFrame for easier manipulation(text, labels)
-df = df.sample(15000, random_state=42)  # Use only 1000 samples
+df = df.sample(16000, random_state=42)  # Use only 16000 samples
 emotions = df['labels'].explode().unique()
 mlb = MultiLabelBinarizer(classes=emotions, sparse_output=False)
 labels = mlb.fit_transform(df['labels'])
@@ -87,6 +88,7 @@ for epoch in range(3):
     model.save_pretrained(version_dir)
     tokenizer.save_pretrained(version_dir)
     joblib.dump(mlb, os.path.join(version_dir, 'mlb.pkl'))
+    joblib.dump(emotion_names, os.path.join(version_dir, 'emotion_names.pkl'))
     print(f"Saved model version {version} after epoch {epoch+1} to {version_dir}")
 
 
@@ -120,6 +122,9 @@ def analyze_emotion(text):
     model.to(device)
     model.eval()   # putting model into evaluation mode
 
+    # load emotion names
+    emotion_names = joblib.load(os.path.join(version_dir, 'emotion_names.pkl'))
+
     '''During inference, it applies those patterns to make decisions.'''
     inputs = tokenizer(
         text,
@@ -128,14 +133,17 @@ def analyze_emotion(text):
         truncation=True
     )
 
+    for key in inputs:
+        inputs[key] = inputs[key].to(device)
+
     with torch.no_grad():
         outputs = model(**inputs).logits  # classification model outputs
     probabilities = torch.sigmoid(outputs)
     threshold = 0.5
     predicted = (probabilities >= threshold).cpu().numpy()   # gives binary vector
-    predicted_list = mlb.inverse_transform(predicted)[0]    # converting binary vector to list of labels
-
-    return predicted_list
+    predicted_list = mlb.inverse_transform(predicted)[2]    # Gets tuple of ints
+    emotion_list = [emotion_names[int(l)] for l in predicted_list]
+    return emotion_list
 
 
 # Test samples (texts from GoEmotions examples; expected emotions based on context/dataset labels)
@@ -159,7 +167,6 @@ for sample in test_samples:
     print(f"Text: '{sample['text']}'")
     print(f"Predicted: {predicted}")
     print(f"Expected (approx.): {sample['expected']}")
-    print(f"Match? {set(predicted) & set(sample['expected'])}")  # Simple overlap check
     print("---")
 
 # # Save the model
