@@ -11,5 +11,6 @@
 
 from datasets import load_dataset
 dataset = load_dataset("go_emotions", "simplified")
-print(dataset)
+emotion_names = dataset['train'].features['labels'].feature.names
+print(emotion_names)
 
