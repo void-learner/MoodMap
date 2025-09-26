@@ -1,6 +1,10 @@
 # MoodMap
 
 A full-stack desktop application for fine-grained emotion analysis using BERT, with user feedback for continuous model improvement, and empathetic text generation.
+
+<img width="480" height="101" alt="image" src="https://github.com/user-attachments/assets/6273486f-af12-4a48-903f-3161e193a00a" />
+
+
 Description
 This project is a BERT-powered chatbot that analyzes user messages for emotions (e.g., joy, sadness, fear) using the GoEmotions dataset. It supports multi-label classification, generates context-aware responses, and incorporates a feedback loop to fine-tune the model over time. The backend is built with FastAPI and Hugging Face Transformers, while the frontend is a desktop app using Vite, React, TypeScript, Electron, Tailwind CSS, and Lucide React icons.
 The app features a clean UI with bot introductions, emotion probability displays (e.g., "Neutral 30%"), Yes/No feedback buttons, and smooth chatting experience with auto-scroll and typing indicators.
