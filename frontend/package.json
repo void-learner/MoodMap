@@ -9,7 +9,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "electron:start": "concurrently -k \"cross-env BROWSER=none vite\" \"wait-on http://localhost:5173 && electronmon .\"",
+    "electron:start": "concurrently -k \"cross-env BROWSER=none vite\" \"wait-on http://localhost:5173 && electron ./electron/main.js\"",
     "electron:package:mac": "vite build && electron-builder -m -c.extraMetadata.main=dist/main.js",
     "electron:package:win": "vite build && electron-builder -w -c.extraMetadata.main=dist/main.js",
     "electron:package:linux": "vite build && electron-builder -l -c.extraMetadata.main=dist/main.js",
@@ -22,6 +22,7 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@types/node": "^24.5.2",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.2",
