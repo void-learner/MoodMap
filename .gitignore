@@ -12,3 +12,6 @@ emotion_model/
 
 # Ignore test outputs
 test/ 
+
+# Ignore node_modules
+node_modules/ 
