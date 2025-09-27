@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import ChatBubble from "./components/ChatBubble";
+import InputField from "./components/InputField";
 
 // Extend the Window interface to include electronAPI
 declare global {
@@ -21,6 +22,25 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+
+
+// function App() {
+//   const [input, setInput] = useState<string>("");
+
+//   const handleSend = () => {
+//     console.log("Message sent:", input); // 🔥 check if message is captured
+//     setInput(""); // clear after sending
+//   };
+
+//   return (
+//     <div className="p-6">
+//       <h1 className="text-xl font-bold mb-4">Test InputField</h1>
+//       <InputField input={input} setInput={setInput} onSend={handleSend} />
+//     </div>
+//   );
+// }
+
 
 
 
