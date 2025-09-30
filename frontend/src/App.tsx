@@ -13,46 +13,46 @@ declare global {
 }
 
 
-// const App: React.FC = () => {
-//   return (
-//     <div className="min-h-screen bg-gray-50 flex flex-col">
-//       <header className="bg-white shadow">
-//         <h1 className="text-3xl font-bold text-center py-6">MoodMap Desktop</h1>
-//       </header>
-//       {/* <Chatbot /> */}
-//     </div>
-//   );
-// };
-
-
-
-
-function App() {
-  const [feedbackDone, setFeedbackDone] = useState(false);
-
-  const sampleEmotions = [
-    { label: "Happy", probability: 0.8 },
-    { label: "Surprised", probability: 0.3 },
-  ];
-
-  const handleFeedback = async (isCorrect: boolean, trueLabels?: string[]) => {
-    console.log("Feedback submitted:", { isCorrect, trueLabels });
-    setFeedbackDone(true);
-  };
-
+const App: React.FC = () => {
   return (
-    <div className="p-4">
-      <h1>EmotionFeedback Test</h1>
-      {!feedbackDone && (
-        <EmotionFeedback
-          emotions={sampleEmotions}
-          showFeedback={true}
-          onSubmit={handleFeedback}
-        />
-      )}
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <header className="bg-white shadow">
+        <h1 className="text-3xl font-bold text-center py-6">MoodMap Desktop</h1>
+      </header>
+      {/* <Chatbot /> */}
     </div>
   );
-}
+};
+
+
+
+
+// function App() {
+//   const [feedbackDone, setFeedbackDone] = useState(false);
+
+//   const sampleEmotions = [
+//     { label: "Happy", probability: 0.8 },
+//     { label: "Surprised", probability: 0.3 },
+//   ];
+
+//   const handleFeedback = async (isCorrect: boolean, trueLabels?: string[]) => {
+//     console.log("Feedback submitted:", { isCorrect, trueLabels });
+//     setFeedbackDone(true);
+//   };
+
+//   return (
+//     <div className="p-4">
+//       <h1>EmotionFeedback Test</h1>
+//       {!feedbackDone && (
+//         <EmotionFeedback
+//           emotions={sampleEmotions}
+//           showFeedback={true}
+//           onSubmit={handleFeedback}
+//         />
+//       )}
+//     </div>
+//   );
+// }
 
 
 

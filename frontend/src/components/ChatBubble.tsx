@@ -1,4 +1,8 @@
 import React from 'react';
+import axios from 'axios';
+import ChatBubble from './components/ChatBubble';
+import InputField from './components/InputField';
+import EmotionFeedback from './components/EmotionFeedback';
 import { User, Bot} from 'lucide-react';
 
 // define the shape of the props

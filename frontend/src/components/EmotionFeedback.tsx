@@ -1,5 +1,3 @@
-// src/components/EmotionFeedback.tsx (updated for popup on No)
-
 import React, { useState } from 'react';
 import { Check, X } from 'lucide-react';
 
