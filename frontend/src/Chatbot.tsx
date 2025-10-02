@@ -1,72 +1,103 @@
-import React, { useEffect, useState, useRef } from 'react';
-import axios from 'axios'; // Import axios for making HTTP requests
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import ChatBubble from './components/ChatBubble';
-import ChatInput from './components/InputField';
+import InputField from './components/InputField';
 import EmotionFeedback from './components/EmotionFeedback';
 
 interface Message {
-    text: string;
-    sender: 'user' | 'bot';
-    emotion? : {label: string, probability: number};  // optional
-    showFeedback?: boolean;  // optional 
+  text: string;
+  sender: 'user' | 'bot';
+  emotions?: { label: string; probability: number }[];  // From backend
+  showFeedback?: boolean;
 }
 
-const [message, setMessage] = useState<Message[]>([
-    { text: "Hi there! ...I am goru", sender: "bot"},
-]);
+const Chatbot: React.FC = () => {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      text: "Hi there! I'm Goru, How can I help you?",
+      sender: 'bot',
+    },
+  ]);
+  const [input, setInput] = useState<string>('');
+  const [isTyping, setIsTyping] = useState<boolean>(false);
+  const chatRef = useRef<HTMLDivElement>(null);
 
-const [input, setInput] = useState<string>('');
-const [isLoading, setIsTyping] = useState<boolean>(false);
-const ChatRef = useRef<HTMLDivElement>(null);
-
-useEffect(() => {
-    if (ChatRef.current) {
-        ChatRef.current.scrollTop = ChatRef.current.scrollHeight;
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
-},[message]);
+  }, [messages]);
 
-const sendMessage = async () => {
-    if (!input.trim()) return; // Prevent sending empty messages
-
-    const userMessage: Message = {text: input, sender: 'user', showFeedback: false};
-    setMessage((prevMessages) => [...prevMessages, userMessage]);
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    const userMessage: Message = { text: input, sender: 'user', showFeedback: true };
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
 
-    try{
-        const response = await axios.post('http://localhost:8000/analyze_emotion', { text: input });
-        const botMessage: Message = {
-            text: response.data.generated_text,
-            sender: 'bot',
-        };
-
-        setMessage((prevMessages) => {
-            const update = [...prevMessages];
-            update[update.length - 1].emotion = response.data.emotion;
-            return update;
-        });
+    try {
+      const res = await axios.post('http://localhost:8000/analyze_emotion', { text: input });
+      const botMessage: Message = {
+        text: res.data.generated_text,
+        sender: 'bot',
+      };
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1].emotions = res.data.emotions;  // Attach to user message
+        return [...updated, botMessage];
+      });
     } catch (error) {
-        console.error("Error fetching bot response:", error);
-        setMessage((prevMessages) => [...prevMessages, { text: "Sorry, something went wrong.", sender: "bot" }]);
+      console.error('Error:', error);
+      setMessages((prev) => [...prev, { text: 'Error connecting to backend.', sender: 'bot' }]);
     } finally {
-        setIsTyping(false);
-    }    
-};
+      setIsTyping(false);
+    }
+  };
 
-const handleFeedback = async (isCorrect: boolean, trueLabel?: string[]) => {
-    const lastUserIndex = message.length - 2;
-    const userMessage = message[lastUserIndex];
-    if (!userMessage.emotion) return;
+  const handleFeedback = async (isCorrect: boolean, trueLabels?: string[]) => {
+    const lastUserIndex = messages.length - 2;  // User message before bot
+    const userMsg = messages[lastUserIndex];
+    if (!userMsg.emotions) return;
 
     const feedbackData = {
-        text: userMessage.text,
-        predicted_label: userMessage.emotion.label,
-        is_correct: isCorrect,
-        true_label: isCorrect ? [userMessage.emotion.label] : trueLabel || [],
-
-    }
+      text: userMsg.text,
+      predicted_labels: userMsg.emotions.map(e => e.label),
+      is_correct: isCorrect,
+      true_labels: isCorrect ? userMsg.emotions.filter(e => e.probability > 0.5).map(e => e.label) : trueLabels || [],
+    };
     await axios.post('http://localhost:8000/feedback', feedbackData);
 
     // Hide feedback
-    
-}
+    setMessages((prev) => {
+      const updated = [...prev];
+      updated[lastUserIndex].showFeedback = false;
+      return updated;
+    });
+  };
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden p-4">
+      <div ref={chatRef} className="flex-1 overflow-y-auto space-y-4">
+        {messages.map((msg, idx) => (
+          <div key={idx} className="relative">
+            <ChatBubble message={msg} />
+            {msg.sender === 'user' && msg.emotions && (
+              <EmotionFeedback
+                emotions={msg.emotions}
+                showFeedback={msg.showFeedback ?? false}
+                onSubmit={handleFeedback}
+              />
+            )}
+            <div className="text-xs text-gray-400 mt-1 {msg.sender === 'user' ? 'text-right' : 'text-left'}">
+              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+            </div>
+          </div>
+        ))}
+        {isTyping && <div className="text-gray-500">Bot is typing...</div>}
+      </div>
+      <InputField input={input} setInput={setInput} onSend={sendMessage} />
+    </div>
+  );
+};
+
+export default Chatbot;

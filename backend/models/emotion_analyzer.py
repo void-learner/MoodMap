@@ -14,7 +14,7 @@ emotion_names = dataset['train'].features['labels'].feature.names
 
 # Preprocess
 df = pd.DataFrame(dataset['train'])  # Convert to DataFrame for easier manipulation(text, labels)
-df = df.sample(16500, random_state=42)  # Use only 16500 samples
+df = df.sample(15000, random_state=42)  # Use only 15000 samples
 emotions = df['labels'].explode().unique()
 mlb = MultiLabelBinarizer(classes=emotions, sparse_output=False)
 labels = mlb.fit_transform(df['labels'])

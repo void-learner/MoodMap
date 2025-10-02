@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import ChatBubble from "./components/ChatBubble";
-import InputField from "./components/InputField";
-import EmotionFeedback from "./components/EmotionFeedback";
+import { Brain } from 'lucide-react';
+import Chatbot from './Chatbot';
+
 
 // Extend the Window interface to include electronAPI
 declare global {
@@ -16,15 +16,30 @@ declare global {
 const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white shadow">
-        <h1 className="text-3xl font-bold text-center py-6">MoodMap Desktop</h1>
+      <header className="bg-white shadow-md p-4 flex items-center space-x-2">
+        <div className="bg-blue-100 p-2 rounded">
+          <Brain className="w-6 h-6 text-blue-500" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-800">BERT-Powered Emotion Chatbot</h1>
+          <p className="text-sm text-gray-500">Fine-tuned on GoEmotions dataset with continuous learning</p>
+        </div>
+        <div className="ml-auto flex space-x-4 text-gray-500">
+          <button>Stats</button>  {/* Placeholder; add logic if needed */}
+        </div>
       </header>
-      {/* <Chatbot /> */}
+      <Chatbot />
     </div>
   );
 };
 
 
+
+// === IGNORE: Below are test snippets for individual components ===
+
+// import ChatBubble from "./components/ChatBubble";
+// import InputField from "./components/InputField";
+// import EmotionFeedback from "./components/EmotionFeedback";
 
 
 // function App() {
@@ -61,7 +76,7 @@ const App: React.FC = () => {
 //   const [input, setInput] = useState<string>("");
 
 //   const handleSend = () => {
-//     console.log("Message sent:", input); // 🔥 check if message is captured
+//     console.log("Message sent:", input); 
 //     setInput(""); // clear after sending
 //   };
 
@@ -79,8 +94,8 @@ const App: React.FC = () => {
 // function App() {
 //   return (
 //     <div className="p-4 space-y-4">
-//       <ChatBubble message={{ text: "Hello! I'm the bot 🤖", sender: "bot" }} />
-//       <ChatBubble message={{ text: "Hi there! I'm the user 🙋‍♀️", sender: "user" }} />
+//       <ChatBubble message={{ text: "Hello! I'm the bot ", sender: "bot" }} />
+//       <ChatBubble message={{ text: "Hi there! I'm the user ", sender: "user" }} />
 //       <ChatBubble message={{ text: "How are you doing?", sender: "bot" }} />
 //       <ChatBubble message={{ text: "I'm doing great, thanks!", sender: "user" }} />
 //     </div>
@@ -109,5 +124,4 @@ const App: React.FC = () => {
 //     </div>
 //   );
 // }
-
 export default App;
