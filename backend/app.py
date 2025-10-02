@@ -1,11 +1,21 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from models.emotion_analyzer import analyze_emotion
-from models.model_updation import add_feedback
-from models.text_genration import chat_with_bot
+from backend.models.emotion_analyzer import analyze_emotion
+from backend.models.model_updation import add_feedback
+from backend.models.text_genration import chat_with_bot
 from typing import List, Optional
+from fastapi.middleware.core import CORSMiddleware
+
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class Input(BaseModel):
     text: str

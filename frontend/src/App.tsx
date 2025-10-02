@@ -21,8 +21,8 @@ const App: React.FC = () => {
           <Brain className="w-6 h-6 text-blue-500" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-800">BERT-Powered Emotion Chatbot</h1>
-          <p className="text-sm text-gray-500">Fine-tuned on GoEmotions dataset with continuous learning</p>
+          <h1 className="text-xl font-bold text-gray-800">Goru-the-Bot</h1>
+          <p className="text-sm text-gray-500">Trying to understand your emotions.......</p>
         </div>
         <div className="ml-auto flex space-x-4 text-gray-500">
           <button>Stats</button>  {/* Placeholder; add logic if needed */}
