@@ -9,17 +9,17 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-origins = [
-    "http://localhost",
-    "http://127.0.0.1",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "file://", 
-]
+# origins = [
+#     "http://localhost",
+#     "http://127.0.0.1",
+#     "http://localhost:5173",
+#     "http://127.0.0.1:5173",
+#     "file://", 
+# ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins_regex=["."],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
