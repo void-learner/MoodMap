@@ -4,6 +4,8 @@ import ChatBubble from './components/ChatBubble';
 import InputField from './components/InputField';
 import EmotionFeedback from './components/EmotionFeedback';
 
+const BASE_URL = 'http://127.0.0.1:8000';
+
 interface Message {
   text: string;
   sender: 'user' | 'bot';
@@ -36,7 +38,7 @@ const Chatbot: React.FC = () => {
     setIsTyping(true);
 
     try {
-      const res = await axios.post('http://localhost:8000/analyze_emotion', { text: input });
+      const res = await axios.post(`${BASE_URL}/analyze_emotion`, { text: input });
       const botMessage: Message = {
         text: res.data.generated_text,
         sender: 'bot',
@@ -65,7 +67,7 @@ const Chatbot: React.FC = () => {
       is_correct: isCorrect,
       true_labels: isCorrect ? userMsg.emotions.filter(e => e.probability > 0.5).map(e => e.label) : trueLabels || [],
     };
-    await axios.post('http://localhost:8000/feedback', feedbackData);
+    await axios.post(`${BASE_URL}/feedback`, feedbackData);
 
     // Hide feedback
     setMessages((prev) => {
@@ -88,7 +90,7 @@ const Chatbot: React.FC = () => {
                 onSubmit={handleFeedback}
               />
             )}
-            <div className="text-xs text-gray-400 mt-1 {msg.sender === 'user' ? 'text-right' : 'text-left'}">
+            <div className="text-xs text-gray-400 mt-1 ${msg.sender === 'user' ? 'text-right' : 'text-left'}">
               {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
             </div>
           </div>
