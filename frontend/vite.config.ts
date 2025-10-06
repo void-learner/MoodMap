@@ -1,8 +1,22 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import electron from "vite-plugin-electron";
+import renderer from "vite-plugin-electron-renderer";
 
+// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    electron([
+      {
+        entry: 'electron/main.js',
+      },
+      {
+        entry: 'electron/preload.js',
+      },
+    ]),
+    renderer(),
+  ],
   base: "./",   // important for Electron builds
   build: {
     outDir: "dist",
@@ -13,9 +27,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
-      
-      }
-    }
-  }
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
 });

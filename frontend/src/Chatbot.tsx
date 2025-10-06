@@ -4,7 +4,7 @@ import ChatBubble from './components/ChatBubble';
 import InputField from './components/InputField';
 import EmotionFeedback from './components/EmotionFeedback';
 
-const BASE_URL = 'http://localhost:8000';
+const BASE_URL = 'http://127.0.0.1:8000';
 
 interface Message {
   text: string;
@@ -50,6 +50,7 @@ const Chatbot: React.FC = () => {
       });
     } catch (error) {
       console.error('Error:', error);
+      console.error('Error connecting to backend:', error);
       setMessages((prev) => [...prev, { text: 'Error connecting to backend.', sender: 'bot' }]);
     } finally {
       setIsTyping(false);

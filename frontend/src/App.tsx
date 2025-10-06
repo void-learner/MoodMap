@@ -21,7 +21,7 @@ const App: React.FC = () => {
           <Brain className="w-6 h-6 text-blue-500" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-800">Goru-the-Bot</h1>
+          <h1 className="text-xl font-bold text-gray-800">BERT based model</h1>
           <p className="text-sm text-gray-500">Trying to understand your emotions.......</p>
         </div>
         <div className="ml-auto flex space-x-4 text-gray-500">

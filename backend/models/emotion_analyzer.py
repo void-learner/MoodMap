@@ -14,7 +14,7 @@ emotion_names = dataset['train'].features['labels'].feature.names
 
 # Preprocess
 df = pd.DataFrame(dataset['train'])  # Convert to DataFrame for easier manipulation(text, labels)
-df = df.sample(16500, random_state=42)  # Use only 16500 samples
+df = df.sample(17000, random_state=42)  # Use only 17000 samples
 emotions = df['labels'].explode().unique()
 mlb = MultiLabelBinarizer(classes=emotions, sparse_output=False)
 labels = mlb.fit_transform(df['labels'])
@@ -25,8 +25,8 @@ def preprocess_function(text):
     return tokenizer(text, padding=True, truncation=True, return_tensors="pt")
 
 inputs = preprocess_function(df['text'].tolist())
-print(type(inputs['input_ids'])) 
-print(df['text'].dtype)  
+# print(type(inputs['input_ids'])) 
+# print(df['text'].dtype)  
 
 dataset = TensorDataset(
     inputs['input_ids'].type(torch.long), 
@@ -63,7 +63,7 @@ model.to(device)
 # Training loop with GPU memory management
 torch.cuda.empty_cache()
 start_time = time.time()
-for epoch in range(3):
+for epoch in range(1):
     model.train()
     print(f"Starting epoch {epoch+1}")
     for batch in loader:
@@ -139,40 +139,42 @@ def analyze_emotion(text):
     with torch.no_grad():
         outputs = model(**inputs).logits  # classification model outputs
     probabilities = torch.sigmoid(outputs)
-    threshold = 0.3
+    threshold = 0.2
     predicted_prob = (probabilities >= threshold).cpu().numpy()[0]   # gives binary vector
     emotions = mlb.classes_
 
     # Return all with probability above threshold
     emotions_with_probs = [
-        {'label': labels, 'probability': float(prob)} for labels, prob in zip(emotions, predicted_prob) if prob >= threshold
+        {'label': emotion_names[idx], 'probability': float(prob)} for idx, prob in enumerate(predicted_prob) if prob >= threshold
     ]
 
     emotions_with_probs.sort(key=lambda x: x['probability'], reverse=True)
 
     return emotions_with_probs
 
+# print(analyze_emotion("I try my damndest. Hard to be sad these days when I got this guy with me"))
 
-# Test samples (texts from GoEmotions examples; expected emotions based on context/dataset labels)
+
+# Test samples
 # test_samples = [
-#     {"text": "LETS FUCKING GOOOOO", "expected": ["excitement"]},  # Often mislabeled as "anger" in dataset, but excitement
-#     {"text": "*aggressively tells friend I love them*", "expected": ["love"]},  # Mislabeled as "anger"
-#     {"text": "you almost blew my fucking mind there.", "expected": ["surprise", "admiration"]},  # Mislabeled as "annoyance"
-#     {"text": "daaaaaamn girl!", "expected": ["admiration"]},  # Mislabeled as "anger"
-#     {"text": "[NAME] wept.", "expected": ["surprise"]},  # Idiom, mislabeled as "sadness"
-#     {"text": "I try my damndest. Hard to be sad these days when I got this guy with me", "expected": ["joy"]},  # Mislabeled as "sadness"
-#     {"text": "hell yeah my brother", "expected": ["approval"]},  # Mislabeled as "annoyance"
-#     {"text": "[NAME] is bae, how dare you.", "expected": ["love"]},  # Mock anger, mislabeled as "anger"
-#     {"text": "I'm so happy today!", "expected": ["joy"]},  # Simple positive
-#     {"text": "I feel really sad.", "expected": ["sadness"]},  # Simple negative
-#     {"text": "This is neutral.", "expected": ["neutral"]}  # Neutral baseline
+#     {"text": "LETS FUCKING GOOOOO", "expected": ["excitement"]},  
+#     {"text": "*aggressively tells friend I love them*", "expected": ["love"]},  
+#     {"text": "you almost blew my fucking mind there.", "expected": ["surprise", "admiration"]},  
+#     {"text": "daaaaaamn girl!", "expected": ["admiration"]},  
+#     {"text": "[NAME] wept.", "expected": ["surprise"]},  
+#     {"text": "I try my damndest. Hard to be sad these days when I got this guy with me", "expected": ["joy"]},  
+#     {"text": "hell yeah my brother", "expected": ["approval"]},  
+#     {"text": "[NAME] is bae, how dare you.", "expected": ["love"]},  
+#     {"text": "I'm so happy today!", "expected": ["joy"]},  
+#     {"text": "I feel really sad.", "expected": ["sadness"]},  
+#     {"text": "This is neutral.", "expected": ["neutral"]}  
 # ]
 
 # print("\nManual Test Results:")
 # for sample in test_samples:
 #     predicted = analyze_emotion(sample['text'])
 #     print(f"Text: '{sample['text']}'")
-#     print(f"Predicted: {predicted}")
+#     print(f"Predicted: {[p['label'] for p in predicted]}")
 #     print(f"Expected (approx.): {sample['expected']}")
 #     print("---")
 

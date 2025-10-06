@@ -6,7 +6,8 @@ tokenizer = BlenderbotTokenizer.from_pretrained(model_name)
 model = BlenderbotForConditionalGeneration.from_pretrained(model_name)
 
 def chat_with_bot(emotion, user_input):
-    prompt = f"Given emotions: {', '.join(emotion)}. Respond cheerfully if happy, empathetically if sad: {user_input}"
+    emotion_labels = [e['label'] for e in emotion]
+    prompt = f"Given emotions: {', '.join(emotion_labels)}. Respond cheerfully if happy, empathetically if sad: {user_input}"
     inputs = tokenizer(
         prompt, 
         return_tensors="pt",
