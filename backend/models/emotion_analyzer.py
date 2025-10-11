@@ -3,6 +3,7 @@ from transformers import BertTokenizer, BertForSequenceClassification
 import torch
 from sklearn.preprocessing import MultiLabelBinarizer
 from torch.utils.data import DataLoader, TensorDataset
+from torch.nn import BCEWithLogitsLoss
 import pandas as pd
 import joblib
 import time
@@ -60,9 +61,19 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
 
 
+
 # Training loop with GPU memory management
 torch.cuda.empty_cache()
 start_time = time.time()
+
+# Compute class weights based on label frequency
+label_counts = labels.sum(axis=0)
+class_weights = 1.0 / (label_counts + 1e-5)
+
+# Nomalize
+class_weights = class_weights / class_weights.max()
+
+criterion = BCEWithLogitsLoss(pos_weight=class_weights.to(device))
 for epoch in range(1):
     model.train()
     print(f"Starting epoch {epoch+1}")
@@ -71,9 +82,15 @@ for epoch in range(1):
         # print(input_ids.dtype, attention_mask.dtype, labels.dtype) 
         outputs = model(input_ids, attention_mask=attention_mask, labels=labels.float())
 
+        # logistics
+        logits = outputs.logits
+
         # Compute the loss and its gradients
-        loss = outputs.loss
+        loss = criterion(logits, labels.float())
         loss.backward()
+
+        # Gradient clipping to avoid exploding gradients
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
         # Adjust learning weights
         optimizer.step()
@@ -152,7 +169,6 @@ def analyze_emotion(text):
 
     return emotions_with_probs
 
-# print(analyze_emotion("I try my damndest. Hard to be sad these days when I got this guy with me"))
 
 
 # Test samples
