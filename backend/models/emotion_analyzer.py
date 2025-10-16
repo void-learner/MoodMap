@@ -9,108 +9,110 @@ import joblib
 import time
 import os
 
-# Load the dataset
-dataset = load_dataset("go_emotions", "simplified")   # It returnes a dictionary with 'train', 'validation', and 'test' splits
-emotion_names = dataset['train'].features['labels'].feature.names
 
-# Preprocess
-df = pd.DataFrame(dataset['train'])  # Convert to DataFrame for easier manipulation(text, labels)
-df = df.sample(17000, random_state=42)  # Use only 17000 samples
-emotions = df['labels'].explode().unique()
-mlb = MultiLabelBinarizer(classes=emotions, sparse_output=False)
-labels = mlb.fit_transform(df['labels'])
+def train_emotion_model():
+    # Load the dataset
+    dataset = load_dataset("go_emotions", "simplified")   # It returnes a dictionary with 'train', 'validation', and 'test' splits
+    emotion_names = dataset['train'].features['labels'].feature.names
 
-tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    # Preprocess
+    df = pd.DataFrame(dataset['train'])  # Convert to DataFrame for easier manipulation(text, labels)
+    df = df.sample(18000, random_state=42)  # Use only 18000 samples
+    emotions = df['labels'].explode().unique()
+    mlb = MultiLabelBinarizer(classes=emotions, sparse_output=False)
+    labels = mlb.fit_transform(df['labels'])
 
-def preprocess_function(text):
-    return tokenizer(text, padding=True, truncation=True, return_tensors="pt")
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
-inputs = preprocess_function(df['text'].tolist())
-# print(type(inputs['input_ids'])) 
-# print(df['text'].dtype)  
+    def preprocess_function(text):
+        return tokenizer(text, padding=True, truncation=True, return_tensors="pt")
 
-dataset = TensorDataset(
-    inputs['input_ids'].type(torch.long), 
-    inputs['attention_mask'].type(torch.long), 
-    torch.tensor(labels, dtype=torch.float)
-)
-loader = DataLoader(dataset, batch_size=8, shuffle=True)
+    inputs = preprocess_function(df['text'].tolist())
+    # print(type(inputs['input_ids'])) 
+    # print(df['text'].dtype)  
 
-
-# Function to get the next version number
-def get_next_version(dir_path):
-    if not os.path.exists(dir_path):
-        os.mkdir(dir_path)
-    existing_versions = [
-        d for d in os.listdir(dir_path)
-        if d.startswith('emotion_model_v') and os.path.isdir(os.path.join(dir_path, d))
-    ]
-    # handling case when no versions exist
-    if not existing_versions:
-        return 1
-    max_version = max(
-        int((v.split('_v')[-1])) for v in existing_versions
+    dataset = TensorDataset(
+        inputs['input_ids'].type(torch.long), 
+        inputs['attention_mask'].type(torch.long), 
+        torch.tensor(labels, dtype=torch.float)
     )
-    return max_version + 1
+    loader = DataLoader(dataset, batch_size=8, shuffle=True)
 
 
-# Model
-model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=len(emotions), problem_type="multi_label_classification")
-optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model.to(device)
+    # Function to get the next version number
+    def get_next_version(dir_path):
+        if not os.path.exists(dir_path):
+            os.mkdir(dir_path)
+        existing_versions = [
+            d for d in os.listdir(dir_path)
+            if d.startswith('emotion_model_v') and os.path.isdir(os.path.join(dir_path, d))
+        ]
+        # handling case when no versions exist
+        if not existing_versions:
+            return 1
+        max_version = max(
+            int((v.split('_v')[-1])) for v in existing_versions
+        )
+        return max_version + 1
+
+
+    # Model
+    model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=len(emotions), problem_type="multi_label_classification")
+    optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
 
 
 
-# Training loop with GPU memory management
-torch.cuda.empty_cache()
-start_time = time.time()
+    # Training loop with GPU memory management
+    torch.cuda.empty_cache()
+    start_time = time.time()
 
-# Compute class weights based on label frequency
-label_counts = labels.sum(axis=0)
-class_weights = 1.0 / (label_counts + 1e-5)
+    # Compute class weights based on label frequency
+    label_counts = labels.sum(axis=0)
+    class_weights = 1.0 / (label_counts + 1e-5)
 
-# Nomalize
-class_weights = class_weights / class_weights.max()
+    # Nomalize
+    class_weights = class_weights / class_weights.max()
 
-criterion = BCEWithLogitsLoss(pos_weight=class_weights.to(device))
-for epoch in range(1):
-    model.train()
-    print(f"Starting epoch {epoch+1}")
-    for batch in loader:
-        input_ids, attention_mask, labels = [b.to(device) for b in batch]
-        # print(input_ids.dtype, attention_mask.dtype, labels.dtype) 
-        outputs = model(input_ids, attention_mask=attention_mask, labels=labels.float())
+    criterion = BCEWithLogitsLoss(pos_weight=class_weights.to(device))
+    for epoch in range(1):
+        model.train()
+        print(f"Starting epoch {epoch+1}")
+        for batch in loader:
+            input_ids, attention_mask, labels = [b.to(device) for b in batch]
+            # print(input_ids.dtype, attention_mask.dtype, labels.dtype) 
+            outputs = model(input_ids, attention_mask=attention_mask, labels=labels.float())
 
-        # logistics
-        logits = outputs.logits
+            # logistics
+            logits = outputs.logits
 
-        # Compute the loss and its gradients
-        loss = criterion(logits, labels.float())
-        loss.backward()
+            # Compute the loss and its gradients
+            loss = criterion(logits, labels.float())
+            loss.backward()
 
-        # Gradient clipping to avoid exploding gradients
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            # Gradient clipping to avoid exploding gradients
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
-        # Adjust learning weights
-        optimizer.step()
+            # Adjust learning weights
+            optimizer.step()
 
-        # Zero your gradients for every batch
-        optimizer.zero_grad()  
+            # Zero your gradients for every batch
+            optimizer.zero_grad()  
 
-    # Save versioned model after each epoch
-    version = get_next_version('./backend/data/saved_models')
-    version_dir = os.path.join('./backend/data/saved_models', f'emotion_model_v{version}')
-    os.makedirs(version_dir, exist_ok=True)
-    model.save_pretrained(version_dir)
-    tokenizer.save_pretrained(version_dir)
-    joblib.dump(mlb, os.path.join(version_dir, 'mlb.pkl'))
-    joblib.dump(emotion_names, os.path.join(version_dir, 'emotion_names.pkl'))
-    print(f"Saved model version {version} after epoch {epoch+1} to {version_dir}")
+        # Save versioned model after each epoch
+        version = get_next_version('./backend/data/saved_models')
+        version_dir = os.path.join('./backend/data/saved_models', f'emotion_model_v{version}')
+        os.makedirs(version_dir, exist_ok=True)
+        model.save_pretrained(version_dir)
+        tokenizer.save_pretrained(version_dir)
+        joblib.dump(mlb, os.path.join(version_dir, 'mlb.pkl'))
+        joblib.dump(emotion_names, os.path.join(version_dir, 'emotion_names.pkl'))
+        print(f"Saved model version {version} after epoch {epoch+1} to {version_dir}")
 
 
-end_time = time.time()
-print(f"Training completed in {(end_time - start_time)/60:.2f} minutes.")
+    end_time = time.time()
+    print(f"Training completed in {(end_time - start_time)/60:.2f} minutes.")
 
 
 def analyze_emotion(text):
