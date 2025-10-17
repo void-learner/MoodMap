@@ -9,6 +9,22 @@ import joblib
 import time
 import os
 
+# Function to get the next version number
+def get_next_version(dir_path):
+    if not os.path.exists(dir_path):
+        os.mkdir(dir_path)
+    existing_version = [
+        d for d in os.listdir(dir_path)
+        if d.startswith('emotion_model_v') and os.path.isdir(os.path.join(dir_path, d))
+    ]
+    # handling case when no versions exist
+    if not existing_version:
+        return 1
+    max_version = max(
+        int((v.split('_v')[-1])) for v in existing_version
+    )
+    return max_version + 1
+
 
 def train_emotion_model():
     # Load the dataset
@@ -37,23 +53,6 @@ def train_emotion_model():
         torch.tensor(labels, dtype=torch.float)
     )
     loader = DataLoader(dataset, batch_size=8, shuffle=True)
-
-
-    # Function to get the next version number
-    def get_next_version(dir_path):
-        if not os.path.exists(dir_path):
-            os.mkdir(dir_path)
-        existing_versions = [
-            d for d in os.listdir(dir_path)
-            if d.startswith('emotion_model_v') and os.path.isdir(os.path.join(dir_path, d))
-        ]
-        # handling case when no versions exist
-        if not existing_versions:
-            return 1
-        max_version = max(
-            int((v.split('_v')[-1])) for v in existing_versions
-        )
-        return max_version + 1
 
 
     # Model
@@ -113,45 +112,52 @@ def train_emotion_model():
 
     end_time = time.time()
     print(f"Training completed in {(end_time - start_time)/60:.2f} minutes.")
+    return f"Trained and saved model version {version}."
 
 
-def analyze_emotion(text):
+def analyze_emotion(text, version: int = None):
     saved_dir_path = './backend/data/saved_models'
     
-    if not os.path.exists(saved_dir_path) or not os.listdir(saved_dir_path):
-        raise ValueError("No saved models found. Please train the model first.")
-    
-    existing_versions = [
-        d for d in os.listdir(saved_dir_path)
-        if d.startswith('emotion_model_v') and os.path.isdir(os.path.join(saved_dir_path, d))
-    ]
+    if version is not None:
+        existing_versions = [
+            d for d in os.listdir(saved_dir_path)
+            if d.startswith('emotion_model_v') and os.path.isdir(os.path.join(saved_dir_path, d))
+        ]
 
-    if not existing_versions:
-        raise ValueError("No valid model versions found in the saved models directory.")
+        if not existing_versions:
+            raise ValueError("No valid model versions found in the saved models directory.")
+        latest_version = max(
+            int((v.split('_v')[-1])) for v in existing_versions
+        )
+        version_dir = os.path.join(saved_dir_path, f'emotion_model_v{latest_version}')
+    else:
+        # Use specific model
+        version_dir = os.path.join(saved_dir_path, f'emotion_model_v{version}')
+        if not os.path.exists(version_dir):
+            raise ValueError(f"Model version {version} does not exist.")
+        
     
-    latest_version = max(
-        int((v.split('_v')[-1])) for v in existing_versions
-    )
-    version_dir = os.path.join(saved_dir_path, f'emotion_model_v{latest_version}')
+    # Load model, tokenizer, mlb
     model = BertForSequenceClassification.from_pretrained(version_dir)
     tokenizer = BertTokenizer.from_pretrained(version_dir)
     mlb = joblib.load(os.path.join(version_dir, 'mlb.pkl'))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
-    model.eval()   # putting model into evaluation mode
+    model.eval()
 
     # load emotion names
     emotion_names = joblib.load(os.path.join(version_dir, 'emotion_names.pkl'))
 
-    '''During inference, it applies those patterns to make decisions.'''
+
+    # '''During inference, it applies those patterns to make decisions.'''
     inputs = tokenizer(
         text,
         return_tensors='pt',
         padding=True,
         truncation=True
     )
-
+    
     for key in inputs:
         inputs[key] = inputs[key].to(device)
 
@@ -170,6 +176,62 @@ def analyze_emotion(text):
     emotions_with_probs.sort(key=lambda x: x['probability'], reverse=True)
 
     return emotions_with_probs
+
+
+
+
+    # if not os.path.exists(saved_dir_path) or not os.listdir(saved_dir_path):
+    #     raise ValueError("No saved models found. Please train the model first.")
+    
+    # existing_versions = [
+    #     d for d in os.listdir(saved_dir_path)
+    #     if d.startswith('emotion_model_v') and os.path.isdir(os.path.join(saved_dir_path, d))
+    # ]
+
+    # if not existing_versions:
+    #     raise ValueError("No valid model versions found in the saved models directory.")
+    
+    # latest_version = max(
+    #     int((v.split('_v')[-1])) for v in existing_versions
+    # )
+    # version_dir = os.path.join(saved_dir_path, f'emotion_model_v{latest_version}')
+    # model = BertForSequenceClassification.from_pretrained(version_dir)
+    # tokenizer = BertTokenizer.from_pretrained(version_dir)
+    # mlb = joblib.load(os.path.join(version_dir, 'mlb.pkl'))
+
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # model.to(device)
+    # model.eval()   # putting model into evaluation mode
+
+    # # load emotion names
+    # emotion_names = joblib.load(os.path.join(version_dir, 'emotion_names.pkl'))
+
+    # '''During inference, it applies those patterns to make decisions.'''
+    # inputs = tokenizer(
+    #     text,
+    #     return_tensors='pt',
+    #     padding=True,
+    #     truncation=True
+    # )
+
+    # for key in inputs:
+    #     inputs[key] = inputs[key].to(device)
+
+    # with torch.no_grad():
+    #     outputs = model(**inputs).logits  # classification model outputs
+    # probabilities = torch.sigmoid(outputs)
+    # threshold = 0.2
+    # predicted_prob = (probabilities >= threshold).cpu().numpy()[0]   # gives binary vector
+    # emotions = mlb.classes_
+
+    # # Return all with probability above threshold
+    # emotions_with_probs = [
+    #     {'label': emotion_names[idx], 'probability': float(prob)} for idx, prob in enumerate(predicted_prob) if prob >= threshold
+    # ]
+
+    # emotions_with_probs.sort(key=lambda x: x['probability'], reverse=True)
+
+    # return emotions_with_probs
 
 
 
