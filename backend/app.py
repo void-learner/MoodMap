@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from backend.models.emotion_analyzer import analyze_emotion
+from backend.models.emotion_analyzer import analyze_emotion, train_emotion_model
 from backend.models.model_updation import add_feedback
 from backend.models.text_genration import chat_with_bot
 from typing import List, Optional
@@ -36,7 +36,7 @@ class Feedback(BaseModel):
 
 @app.post("/analyze_emotion")
 def analyze(input: Input):
-    emotion = analyze_emotion(input.text)
+    emotion = analyze_emotion(input.text, version=None)
     generated = chat_with_bot(emotion, input.text)
     return {'emotion': emotion, 'generated_text': generated}
 
@@ -49,3 +49,9 @@ def feedback(feedback: Feedback):
         feedback.is_correct
     )
     return {'status': 'Feedback received'}
+
+# For on-demand training
+# @app.post("/train_model")
+# def train():
+#     result = train_emotion_model()
+#     return {'status': result}
