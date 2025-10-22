@@ -9,8 +9,9 @@
 # print(torch.cuda.is_available())
 # print(torch.version.cuda)
 
-from datasets import load_dataset
-dataset = load_dataset("go_emotions", "simplified")
-emotion_names = dataset['train'].features['labels'].feature.names
-print(emotion_names)
+
+# from datasets import load_dataset
+# dataset = load_dataset("go_emotions", "simplified")
+# emotion_names = dataset['train'].features['labels'].feature.names
+# print(emotion_names)
 
