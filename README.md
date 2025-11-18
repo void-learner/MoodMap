@@ -12,7 +12,7 @@ The app features a clean UI with bot introductions, emotion probability displays
 ## Features
 
 Emotion Analysis: Fine-tuned BERT model on GoEmotions for 28+ emotions.
-Text Generation: Empathetic responses based on detected emotions using Hugging Face models.
+Text Generation: Empathetic responses based on detected emotions using llama.
 Feedback Loop: Users provide corrections; model updates via fine-tuning and versioning.
 Model Versioning: Saves models in data/saved_models/ with incremental versions.
 Desktop UI: Responsive chat interface with Tailwind styling and Lucide icons.
@@ -32,3 +32,17 @@ Python 3.12+
 Node.js 18+ and npm
 Docker (for backend containerization)
 Git
+ollama
+
+## Steps
+
+### step 1: Terminal 1 – Setup ollama (we can use any version)
+ollama pull gemma2:2b 
+
+### step 2: Terminal 2 – Start Backend
+cd backend
+uvicorn app:app --reload --port=8000
+
+### step 3: Terminal 3 – Start Desktop App
+cd frontend
+npm run dev
