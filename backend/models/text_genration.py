@@ -1,169 +1,89 @@
-import re
-import spacy
-import sqlite3
-import json
-from datetime import datetime
-from typing import Dict, Optional
-from word2number import w2n
+import ollama
+from backend.models.personal_memory import extract_and_save_user_info
 
-nlp = spacy.load("en_core_web_sm")
+conversation_history = {}
 
-conn = sqlite3.connect('./backend/data/user_memory.db', check_same_thread=False)
-c = conn.cursor()
-c.execute('''
-    CREATE TABLE IF NOT EXISTS user_profiles (
-        session_id TEXT PRIMARY KEY,
-        name TEXT,
-        age INTEGER,
-        location TEXT,
-        created_at TEXT,
-        updated_at TEXT
-    )
-''')
-c.execute('''
-    CREATE TABLE IF NOT EXISTS user_facts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id TEXT,
-        fact TEXT,
-        timestamp TEXT
-    )
-''')
-conn.commit()
+def chat_with_bot(user_input: str, emotions: list, session_id: str) -> str:
+    print(f"\n[DEBUG] User said: {user_input}")
+    print(f"[DEBUG] Session ID: {session_id}")
+    
+    try:
+        profile = extract_and_save_user_info(session_id, user_input)
+        name = profile.get("name", "there")
+        print(f"[DEBUG] Profile loaded → Name: {name}, Age: {profile.get('age')}, Location: {profile.get('location')}")
 
+        if session_id not in conversation_history:
+            conversation_history[session_id] = []
+        history = conversation_history[session_id]
 
-AGE_KEYWORDS_RE = re.compile(r"\b(i'm|i am|im|my age is|age|i turned)\b", flags=re.I)
-DIGIT_RE = re.compile(r"\d+")
+        emotion_labels = [e["label"] for e in emotions]
+        top_emotions = emotion_labels[:2] if emotion_labels else ["neutral"]
+        print(f"[DEBUG] Top emotions: {top_emotions}")
 
-def get_profile(session_id: str) -> Dict:
-    c.execute("SELECT name, age, location FROM user_profiles WHERE session_id = ?", (session_id,))
-    row = c.fetchone()
-    if row:
-        return {"name": row[0] or "there", "age": row[1], "location": row[2]}
-    return {"name": "there", "age": None, "location": None}
+        system_prompt = f"""You are Goru, a warm and caring friend talking to {name}.
+        {f'{name} is {profile["age"]} years old.' if profile.get("age") else ''}
+        {f'They live in {profile["location"]}.' if profile.get("location") else ''}
+        Be {' and '.join(top_emotions)}. Use their name often. Respond naturally."""
 
-def extract_and_save_user_info(session_id: str, text: str):
-    doc = nlp(text.lower())
-    data = get_profile(session_id)
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(history[-10:])
+        messages.append({"role": "user", "content": user_input})
 
-    # Extract name
-    if not data["name"]:
-        for ent in doc.ents:
-            if ent.label_ == "PERSON":
-                data["name"] = ent.text.title()
-                updated = True
-                break
-        if "my name is" in text.lower():
-            parts = text.lower().split("my name is")
-            if len(parts) > 1:
-                possible_name = parts[-1].strip().split()[0]
-                data["name"] = possible_name.title()
-                updated = True
-        if "call me" in text.lower():
-            parts = text.lower().split("call me")
-            if len(parts) > 1:
-                possible_name = parts[-1].strip().split()[0]
-                data["name"] = possible_name.title()
-                updated = True
+        print("[DEBUG] Calling Ollama with model: gemma2:2b")
+        print(f"[DEBUG] Messages sent: {len(messages)} messages")
 
-    # Extract age
-    if not data["age"]:
-        if AGE_KEYWORDS_RE.search(text):
-            # Digit based age extraction
-            for m in DIGIT_RE.finditer(text.lower()):
-                age = int(m.group())
-                if 10 <= age <= 100:
-                    data["age"] = age
-                    updated = True
-                    break
-            # Word based age extraction    
-            if not data["age"]:    
-                try:
-                    may_be_age = w2n.word_to_num(text)
-                    if 10 <= may_be_age <= 100:
-                        data["age"] = may_be_age
-                        updated = True
-                except:
-                    pass
+        # THIS IS THE MOMENT OF TRUTH
+        response = ollama.chat(
+            model="gemma2:2b",   # ← MUST BE EXACTLY THIS
+            messages=messages,
+            options={
+                "num_gpu": 0,           # ← THIS LINE FORCES CPU ONLY
+                "temperature": 0.8,
+                "num_predict": 256
+            }
+        )
 
-    # Extract location
-    if not data["location"]:
-        for ent in doc.ents:
-            if ent.label_ in ("GPE", "LOC"):
-                data["location"] = ent.text.title()
-                updated = True
-                break
+        reply = response["message"]["content"].strip()
+        print(f"[SUCCESS] Goru replied: {reply}")
 
-    # Save other info
-    if not data["name"] or not data["age"] or not data["location"]:
-        c.execute("INSERT INTO user_facts (session_id, fact, timestamp) VALUES (?, ?, ?)",
-                   (session_id, text[:200], datetime.now().isoformat()))
-        conn.commit()
+        history.append({"role": "user", "content": user_input})
+        history.append({"role": "assistant", "content": reply})
 
-    # Update profile if new info found
-    if updated:
-        c.execute("""
-            INSERT OR REPLACE INTO user_profiles 
-            (session_id, 
-                name, 
-                age, 
-                location, 
-                created_at, 
-                updated_at)
-            VALUES (?, ?, ?, ?, COALESCE((SELECT created_at FROM user_profiles WHERE session_id=?), ?), ?)
-        """, (
-            session_id,
-            data["name"],
-            data["age"],
-            data["location"],
-            datetime.now().isoformat(),
-            datetime.now().isoformat()
-        ))
-        conn.commit()
+        return reply
 
-
-
+    except Exception as e:
+        error_msg = str(e)
+        print(f"\n[OLLAMA CRASHED] → {error_msg}\n")
         
+        # THESE ARE THE MOST COMMON ERRORS & FIXES:
+        if "model" in error_msg and "not found" in error_msg:
+            return "Bro, Ollama can't find 'gemma2:2b'. Run: ollama pull gemma2:2b"
+        elif "connection" in error_msg.lower():
+            return "Ollama server not running. Start it with: ollama serve"
+        else:
+            return f"Goru is having a brain freeze... Error: {error_msg}"
 
+# conversation_history = {}
 
+# def chat_with_bot(emotion, user_input: str, session_id: str) -> str:
+#     profile = extract_and_save_user_info(session_id, user_input)
+#     user_name = profile["name"] 
 
+#     # get conversation history
+#     if session_id not in conversation_history:
+#         conversation_history[session_id] = []
+#     history = conversation_history[session_id]
 
-
-# # model
-# model_name = "microsoft/DialoGPT-medium"
-# device = torch.device("cpu")
-# tokenizer = AutoTokenizer.from_pretrained(model_name)
-# model = AutoModelForCausalLM.from_pretrained(
-#     model_name,
-#     torch_dtype=torch.float32,
-#     low_cpu_mem_usage=True).to(device)
-
-# # for natural and engaging conversations
-# filters = ['hmm', 'you know', 'I see', 'oh', 'well', 'like', 'so']
-# def add_filters(text, prob=0.2):
-#     if random.random() < prob:
-#         filter = random.choice(filters)
-#         text = f"{filter}, {text}"
-#         return text
-#     return text
-
-# def extract_name(text):
-#     doc = nlp(text)
-#     for ent in doc.ents:
-#         if ent.label_ == "PERSON":
-#             return ent.text
-#     return None
-
-# def chat_with_bot(emotion, user_input, user_id='User'):
-#     # if history is None:
-#     #     history = []
-
+#     # extract top emotions
 #     emotion_label = [e['label'] for e in emotion]
-#     name = extract_name(user_input) or user_id
-
-
-#     prompt = "You are a friendly and empathetic chatbot named Goru. Speak naturally and emotionally based on the user's feelings."
 #     top_emotions = emotion_label[:2]
-#     prompt += f" Given emotions: {', '.join(top_emotions)}."
+
+#     system_prompt = f"""You are a warm, caring friend talking to {user_name}.
+#     {f'{user_name} is {profile["age"]} years old.' if profile["age"] else ''}
+#     {f'They live in {profile["location"]}.' if profile["location"] else ''}
+#     Remember what they’ve told you before."""
+
+#     system_prompt += f" Given emotions: {', '.join(top_emotions)}."
 
 #     # emotional tone adjustment
 #     emotional_tone_map = {
@@ -197,46 +117,33 @@ def extract_and_save_user_info(session_id: str, text: str):
 #         'none': "neutral"
 #     }
 
-
 #     for e in top_emotions:
 #         if e in emotional_tone_map:
-#             prompt += " " + emotional_tone_map[e]
+#             system_prompt += " " + emotional_tone_map[e] 
 
-#     # check for conversation history
-#     # if history:
-#     #     prompt += " Previous conversation:\n"
-#     #     for msg in history[-5:]:
-#     #         prompt += f"User: {msg['role']}\nAI: {msg['content']}\n"
+#     # Prepare messages
+#     messages = [{"role": "system", "content": system_prompt}]
+#     messages.extend(history[-10:])
+#     messages.append({"role": "user", "content": user_input})   
 
-#     # Add current user input
-#     prompt += f"\n{name}: {user_input}\nAI:"
+#     # Call ollama
+#     response = ollama.chat(model="gemma2:2b", 
+#                            messages=messages,
+#                            options={
+#                                "temperature": 0.7,
+#                                "top_p": 0.9,
+#                            })
+#     bot_reply = response["message"]["content"]
 
-#     inputs = tokenizer(
-#         prompt,
-#         return_tensors="pt",
-#         truncation=True
-#     ).to(device)
-
-#     with torch.no_grad():
-#         output = model.generate(
-#             **inputs,
-#             max_length=512,
-#             temperature=0.7,
-#             top_k=50,
-#             top_p=0.9,
-#             do_sample=True,    # Creative, varied text generation
-#             num_return_sequences=1,
-#             repetition_penalty=1.2,
-#             pad_token_id=tokenizer.eos_token_id,
-#             num_beams=5
-#         )
-
-#     response = tokenizer.decode(output[0], skip_special_tokens=True)
-#     response = response.split("Goru:")[-1].strip()
-#     response = add_filters(response, prob=0.2)
-
-#     return response
+#     # Save to conversation history
+#     history.append({"role": "user", "content": user_input})
+#     history.append({"role": "assistant", "content": bot_reply})
     
+#     return bot_reply
+
+
+
+
 # examples
 # print(chat_with_bot([{'label': 'joy'}], "Hey Goru! I got selected for my internship!"))
 # print(chat_with_bot([{'label': 'sadness'}], "I miss someone who doesn’t talk to me anymore."))

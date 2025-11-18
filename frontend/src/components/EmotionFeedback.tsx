@@ -18,9 +18,9 @@ const EmotionFeedback: React.FC<EmotionFeedbackProps> = ({ emotions, showFeedbac
   const topLabel = topEmotion.label;
   const topProb = Math.round(topEmotion.probability * 100);
 
-  // Filter emotions > 0.5 for suggestions, sorted by prob desc
+  // Filter emotions > 0.2 for suggestions, sorted by prob desc
   const suggestedEmotions = emotions
-    .filter(e => e.probability > 0.5)
+    .filter(e => e.probability > 0.2)
     .sort((a, b) => b.probability - a.probability);
 
   const toggleSelect = (label: string) => {

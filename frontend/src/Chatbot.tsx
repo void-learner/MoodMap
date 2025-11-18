@@ -9,7 +9,7 @@ const BASE_URL = 'http://127.0.0.1:8000';
 interface Message {
   text: string;
   sender: 'user' | 'bot';
-  emotions?: { label: string; probability: number }[];  // From backend
+  emotions?: { label: string; probability: number }[];
   showFeedback?: boolean;
 }
 
@@ -24,54 +24,104 @@ const Chatbot: React.FC = () => {
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const chatRef = useRef<HTMLDivElement>(null);
 
+  // Auto-scroll
   useEffect(() => {
     if (chatRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
   }, [messages]);
 
+  // Load session id if exists
+  useEffect(() => {
+    const saved = localStorage.getItem('session_id');
+    if (saved) console.log('Session resumed:', saved);
+  }, []);
+
+  // Debug logs
+  useEffect(() => {
+    console.log('Current messages:', messages);
+  }, [messages]);
+
+
+  // ⬇️ ---- UPDATED sendMessage() (your new version fully merged) ---- ⬇️
   const sendMessage = async () => {
     if (!input.trim()) return;
-    const userMessage: Message = { text: input, sender: 'user', showFeedback: true };
-    setMessages((prev) => [...prev, userMessage]);
+
+    const userMessage: Message = {
+      text: input,
+      sender: 'user',
+      showFeedback: true,
+    };
+
+    // Add User Message
+    setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
 
     try {
-      const res = await axios.post(`${BASE_URL}/analyze_emotion`, { text: input });
+      const sessionId = localStorage.getItem('session_id') || undefined;
+
+      const res = await axios.post(`${BASE_URL}/analyze_emotion`, {
+        text: userMessage.text,
+        session_id: sessionId,
+      });
+
+      if (res.data.session_id) {
+        localStorage.setItem('session_id', res.data.session_id);
+      }
+
+      const botReply = res.data.generated_text?.trim();
+
+      if (!botReply) {
+        console.error('EMPTY BOT REPLY:', res.data);
+        setMessages(prev => [...prev, { text: 'Goru is thinking...', sender: 'bot' }]);
+        return;
+      }
+
+      console.log('Goru replied:', botReply);
+
       const botMessage: Message = {
-        text: res.data.generated_text,
+        text: botReply,
         sender: 'bot',
       };
-      setMessages((prev) => {
+
+      // Attach emotions & add bot reply
+      setMessages(prev => {
         const updated = [...prev];
-        updated[updated.length - 1].emotions = res.data.emotions;  // Attach to user message
+        updated[updated.length - 1].emotions = res.data.emotions || [];
         return [...updated, botMessage];
       });
-    } catch (error) {
-      console.error('Error:', error);
-      console.error('Error connecting to backend:', error);
-      setMessages((prev) => [...prev, { text: 'Error connecting to backend.', sender: 'bot' }]);
+
+    } catch (error: any) {
+      console.error('Backend Error:', error.message || error);
+      setMessages(prev => [
+        ...prev,
+        { text: 'Goru is offline. Check backend terminal.', sender: 'bot' },
+      ]);
     } finally {
       setIsTyping(false);
     }
   };
+  // ⬆️ ---- END of UPDATED sendMessage ---- ⬆️
 
+
+
+  // Feedback Handler
   const handleFeedback = async (isCorrect: boolean, trueLabels?: string[]) => {
-    const lastUserIndex = messages.length - 2;  // User message before bot
+    const lastUserIndex = messages.length - 2;
     const userMsg = messages[lastUserIndex];
-    if (!userMsg.emotions) return;
+    if (!userMsg?.emotions) return;
 
-    const feedbackData = {
-      text: userMsg.text,
-      predicted_labels: userMsg.emotions.map(e => e.label),
-      is_correct: isCorrect,
-      true_labels: isCorrect ? userMsg.emotions.filter(e => e.probability > 0.5).map(e => e.label) : trueLabels || [],
-    };
-    await axios.post(`${BASE_URL}/feedback`, feedbackData);
+    try {
+      await axios.post(`${BASE_URL}/feedback`, {
+        text: userMsg.text,
+        predicted_labels: userMsg.emotions.map(e => e.label),
+        is_correct: isCorrect,
+        true_labels: trueLabels || [],
+      });
+    } catch {}
 
-    // Hide feedback
-    setMessages((prev) => {
+    setMessages(prev => {
       const updated = [...prev];
       updated[lastUserIndex].showFeedback = false;
       return updated;
@@ -84,20 +134,34 @@ const Chatbot: React.FC = () => {
         {messages.map((msg, idx) => (
           <div key={idx} className="relative">
             <ChatBubble message={msg} />
-            {msg.sender === 'user' && msg.emotions && (
+
+            {msg.sender === 'user' && msg.emotions && msg.showFeedback && (
               <EmotionFeedback
                 emotions={msg.emotions}
-                showFeedback={msg.showFeedback ?? false}
+                showFeedback={true}
                 onSubmit={handleFeedback}
               />
             )}
-            <div className="text-xs text-gray-400 mt-1 ${msg.sender === 'user' ? 'text-right' : 'text-left'}">
-              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+
+            <div
+              className={`text-xs text-gray-400 mt-1 ${
+                msg.sender === 'user' ? 'text-right' : 'text-left'
+              }`}
+            >
+              {new Date().toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
             </div>
           </div>
         ))}
-        {isTyping && <div className="text-gray-500">Bot is typing...</div>}
+
+        {isTyping && (
+          <div className="text-gray-500 italic">Goru is typing...</div>
+        )}
       </div>
+
+      {/* ENTER TO SEND now works because InputField supports onSend */}
       <InputField input={input} setInput={setInput} onSend={sendMessage} />
     </div>
   );
