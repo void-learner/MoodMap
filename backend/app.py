@@ -10,7 +10,6 @@ from backend.models.model_updation import add_feedback
 from backend.models.text_genration import chat_with_bot
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
-import ollama
 import uuid
 
 app = FastAPI()
