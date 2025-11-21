@@ -55,7 +55,7 @@ def analyze(input: Input):
     }
 
 @app.post("/feedback")
-def feedback(feedback: Feedback):
+async def feedback(feedback: Feedback):
     add_feedback(
         feedback.text,
         feedback.true_labels,

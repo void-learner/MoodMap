@@ -9,7 +9,7 @@ import os
 import sqlite3
 
 # Database connection and table creation
-conn = sqlite3.connect('./backend/data/feedback.db')
+conn = sqlite3.connect('./backend/data/feedback.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS feedback
              (text TEXT, true_labels TEXT, predicted_labels TEXT)''')
